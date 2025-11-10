@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSCSA トレーサビリティHub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Yu Gothic', sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2f4a 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* タイトルバナー */
+        .title-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0d47a1 0%, #1976d2 50%, #42a5f5 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeOut 2.5s ease-in-out forwards;
+        }
+
+        @keyframes fadeOut {
+            0%, 80% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+
+        .title-banner h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: 2px;
+        }
+
+        .title-banner p {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+
+        /* メインコンテナ */
+        .main-container {
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out 2.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* ヘッダー */
+        header {
+            background: rgba(13, 71, 161, 0.95);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+        }
+
+        nav button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        nav button:hover, nav button.active {
+            border-bottom: 2px solid #42a5f5;
+        }
+
+        /* メインコンテンツ */
+        .content {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* ダッシュボードグリッド */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(66, 165, 245, 0.3);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .positive {
+            color: #4caf50;
+        }
+
+        .negative {
+            color: #f44336;
+        }
+
+        .warning {
+            color: #ff9800;
+        }
+
+        /* アラート */
+        .alert-section {
+            background: rgba(255, 152, 0, 0.15);
+            border-left: 4px solid #ff9800;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .alert-title {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        /* グラフセクション */
+        .chart-section {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(66, 165, 245, 0.5);
+        }
+
+        canvas {
+            max-width: 100%;
+            height: 300px;
+        }
+
+        /* テーブル */
+        .table-container {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            overflow-x: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(13, 71, 161, 0.5);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr {
+            transition: background 0.3s;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-verified {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        .status-pending {
+            background: rgba(255, 152, 0, 0.3);
+            color: #ff9800;
+        }
+
+        .status-rejected {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        /* ボタン */
+        .action-btn {
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 165, 245, 0.4);
+        }
+
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* レポート生成 */
+        .report-form {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #42a5f5;
+        }
+
+        /* リアルタイムインジケーター */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .title-banner h1 {
+                font-size: 2.5rem;
+            }
+            
+            .title-banner p {
+                font-size: 1.2rem;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            nav {
+                gap: 1rem;
+            }
+
+            nav button {
+                font-size: 0.9rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- タイトルバナー -->
+    <div class="title-banner">
+        <h1>DSCSA トレーサビリティHub</h1>
+        <p>医薬品サプライチェーン電子相互運用プラットフォーム</p>
+    </div>
+
+    <!-- メインコンテナ -->
+    <div class="main-container">
+        <!-- ヘッダー -->
+        <header>
+            <div class="header-content">
+                <div class="logo">DSCSA トレーサビリティHub</div>
+                <nav>
+                    <button class="nav-btn active" data-page="dashboard">ダッシュボード</button>
+                    <button class="nav-btn" data-page="transactions">取引記録</button>
+                    <button class="nav-btn" data-page="verification">検証・監査</button>
+                    <button class="nav-btn" data-page="reports">レポート</button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- コンテンツ -->
+        <div class="content">
+            <!-- ダッシュボードページ -->
+            <div class="page active" id="dashboard">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.8rem;">リアルタイムダッシュボード</h2>
+                    <div class="live-indicator">
+                        <div class="live-dot"></div>
+                        <span>リアルタイム更新中</span>
+                    </div>
+                </div>
+
+                <!-- アラート -->
+                <div class="alert-section">
+                    <div class="alert-title">注意: 検証保留中の取引があります</div>
+                    <div>3件の取引が検証待ちです。早急な対応が必要です。</div>
+                </div>
+
+                <!-- 統計カード -->
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">本日の取引件数</div>
+                        <div class="stat-value" id="todayTransactions">1,247</div>
+                        <div class="stat-change positive">
+                            <span>▲ 12.5%</span>
+                            <span>前日比</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">検証完了率</div>
+                        <div class="stat-value" id="verificationRate">94.2<span style="font-size: 1.5rem;">%</span></div>
+                        <div class="stat-change positive">
+                            <span>▲ 2.1%</span>
+                            <span>先月比</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">相互運用稼働率</div>
+                        <div class="stat-value" id="operationalRate">99.7<span style="font-size: 1.5rem;">%</span></div>
+                        <div class="stat-change positive">
+                            <span>稼働中</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">処理時間削減</div>
+                        <div class="stat-value" id="timeReduction">75<span style="font-size: 1.5rem;">%</span></div>
+                        <div class="stat-change positive">
+                            <span>従来比</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- グラフ -->
+                <div class="chart-section">
+                    <h3 class="section-title">取引量推移（過去7日間）</h3>
+                    <canvas id="transactionChart"></canvas>
+                </div>
+
+                <div class="chart-section">
+                    <h3 class="section-title">検証ステータス分布</h3>
+                    <canvas id="verificationChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 取引記録ページ -->
+            <div class="page" id="transactions">
+                <h2 style="font-size: 1.8rem; margin-bottom: 2rem;">取引記録管理</h2>
+
+                <div class="table-container">
+                    <h3 class="section-title">最新の取引</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>取引ID</th>
+                                <th>製品名</th>
+                                <th>ロット番号</th>
+                                <th>数量</th>
+                                <th>送信元</th>
+                                <th>送信先</th>
+                                <th>ステータス</th>
+                                <th>日時</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 検証・監査ページ -->
+            <div class="page" id="verification">
+                <h2 style="font-size: 1.8rem; margin-bottom: 2rem;">検証・監査台帳</h2>
+
+                <div style="margin-bottom: 2rem;">
+                    <button class="action-btn">一括検証実行</button>
+                    <button class="action-btn secondary-btn">監査ログ出力</button>
+                </div>
+
+                <div class="table-container">
+                    <h3 class="section-title">検証待ち取引</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>取引ID</th>
+                                <th>製品名</th>
+                                <th>送信元</th>
+                                <th>受信日時</th>
+                                <th>優先度</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>TXN-2025-00423</td>
+                                <td>リピトール 10mg</td>
+                                <td>ファイザー製薬</td>
+                                <td>2025-11-07 14:32</td>
+                                <td><span class="status-badge" style="background: rgba(244, 67, 54, 0.3); color: #f44336;">高</span></td>
+                                <td><button class="action-btn" style="padding: 0.4rem 1rem; margin: 0;">検証</button></td>
+                            </tr>
+                            <tr>
+                                <td>TXN-2025-00418</td>
+                                <td>アムロジピン 5mg</td>
+                                <td>第一三共</td>
+                                <td>2025-11-07 14:15</td>
+                                <td><span class="status-badge status-pending">中</span></td>
+                                <td><button class="action-btn" style="padding: 0.4rem 1rem; margin: 0;">検証</button></td>
+                            </tr>
+                            <tr>
+                                <td>TXN-2025-00401</td>
+                                <td>オメプラゾール 20mg</td>
+                                <td>武田薬品工業</td>
+                                <td>2025-11-07 13:48</td>
+                                <td><span class="status-badge status-verified">低</span></td>
+                                <td><button class="action-btn" style="padding: 0.4rem 1rem; margin: 0;">検証</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- レポートページ -->
+            <div class="page" id="reports">
+                <h2 style="font-size: 1.8rem; margin-bottom: 2rem;">レポート生成</h2>
+
+                <div class="report-form">
+                    <h3 class="section-title">カスタムレポート作成</h3>
+                    <form id="reportForm">
+                        <div class="form-group">
+                            <label>レポート種類</label>
+                            <select id="reportType">
+                                <option>月次取引サマリー</option>
+                                <option>検証・監査レポート</option>
+                                <option>コンプライアンスレポート</option>
+                                <option>パフォーマンス分析</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>対象期間（開始日）</label>
+                            <input type="date" id="startDate" value="2025-10-01">
+                        </div>
+                        <div class="form-group">
+                            <label>対象期間（終了日）</label>
+                            <input type="date" id="endDate" value="2025-11-07">
+                        </div>
+                        <div class="form-group">
+                            <label>出力形式</label>
+                            <select id="outputFormat">
+                                <option>PDF</option>
+                                <option>Excel (XLSX)</option>
+                                <option>CSV</option>
+                            </select>
+                        </div>
+                        <button type="button" class="action-btn" onclick="generateReport()">レポート生成</button>
+                    </form>
+                </div>
+
+                <div class="table-container">
+                    <h3 class="section-title">生成済みレポート</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>レポート名</th>
+                                <th>種類</th>
+                                <th>対象期間</th>
+                                <th>生成日時</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTable">
+                            <tr>
+                                <td>月次取引サマリー_2025年10月</td>
+                                <td>月次取引サマリー</td>
+                                <td>2025-10-01 ~ 2025-10-31</td>
+                                <td>2025-11-01 09:00</td>
+                                <td><button class="action-btn" style="padding: 0.4rem 1rem; margin: 0;" onclick="viewReport()">表示</button></td>
+                            </tr>
+                            <tr>
+                                <td>検証監査レポート_Q3</td>
+                                <td>検証・監査レポート</td>
+                                <td>2025-07-01 ~ 2025-09-30</td>
+                                <td>2025-10-05 14:30</td>
+                                <td><button class="action-btn" style="padding: 0.4rem 1rem; margin: 0;" onclick="viewReport()">表示</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // ナビゲーション
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.page).classList.add('active');
+            });
+        });
+
+        // リアルタイム更新（数値）
+        function updateStats() {
+            const todayTrans = document.getElementById('todayTransactions');
+            const verRate = document.getElementById('verificationRate');
+            const opRate = document.getElementById('operationalRate');
+            const timeRed = document.getElementById('timeReduction');
+
+            setInterval(() => {
+                const current = parseInt(todayTrans.textContent.replace(',', ''));
+                todayTrans.textContent = (current + Math.floor(Math.random() * 3)).toLocaleString();
+            }, 3000);
+
+            setInterval(() => {
+                const current = parseFloat(verRate.textContent);
+                const change = (Math.random() - 0.5) * 0.2;
+                verRate.innerHTML = (current + change).toFixed(1) + '<span style="font-size: 1.5rem;">%</span>';
+            }, 5000);
+
+            setInterval(() => {
+                const current = parseFloat(opRate.textContent);
+                const change = (Math.random() - 0.5) * 0.1;
+                const newVal = Math.max(99.0, Math.min(100, current + change));
+                opRate.innerHTML = newVal.toFixed(1) + '<span style="font-size: 1.5rem;">%</span>';
+            }, 4000);
+        }
+
+        // 取引テーブル生成
+        function generateTransactionTable() {
+            const tbody = document.getElementById('transactionTable');
+            const products = ['リピトール 10mg', 'アムロジピン 5mg', 'メトホルミン 500mg', 'オメプラゾール 20mg', 'シンバスタチン 40mg'];
+            const companies = ['ファイザー製薬', '第一三共', '武田薬品工業', 'アステラス製薬', 'エーザイ'];
+            const statuses = [
+                { text: '検証済み', class: 'status-verified' },
+                { text: '保留中', class: 'status-pending' },
+                { text: '検証済み', class: 'status-verified' }
+            ];
+
+            for (let i = 0; i < 15; i++) {
+                const tr = document.createElement('tr');
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                const hour = 14 - Math.floor(i / 3);
+                const minute = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+                
+                tr.innerHTML = `
+                    <td>TXN-2025-${String(423 - i).padStart(5, '0')}</td>
+                    <td>${products[Math.floor(Math.random() * products.length)]}</td>
+                    <td>LOT${String(20251107 - i).substring(0, 8)}-${String(Math.floor(Math.random() * 999)).padStart(3, '0')}</td>
+                    <td>${Math.floor(Math.random() * 5000) + 1000} 錠</td>
+                    <td>${companies[Math.floor(Math.random() * companies.length)]}</td>
+                    <td>${companies[Math.floor(Math.random() * companies.length)]} 卸</td>
+                    <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                    <td>2025-11-07 ${hour}:${minute}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // グラフ1: 取引量推移
+        const ctx1 = document.getElementById('transactionChart').getContext('2d');
+        const transactionData = {
+            labels: ['11/01', '11/02', '11/03', '11/04', '11/05', '11/06', '11/07'],
+            datasets: [{
+                label: '取引件数',
+                data: [1156, 1089, 1234, 1178, 1312, 1245, 1247],
+                borderColor: '#42a5f5',
+                backgroundColor: 'rgba(66, 165, 245, 0.1)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 3
+            }]
+        };
+
+        const transactionChart = new Chart(ctx1, {
+            type: 'line',
+            data: transactionData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#ffffff' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: { color: '#ffffff' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#ffffff' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    }
+                }
+            }
+        });
+
+        // グラフ2: 検証ステータス
+        const ctx2 = document.getElementById('verificationChart').getContext('2d');
+        const verificationChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['検証済み', '保留中', '要対応'],
+                datasets: [{
+                    data: [1174, 58, 15],
+                    backgroundColor: [
+                        'rgba(76, 175, 80, 0.8)',
+                        'rgba(255, 152, 0, 0.8)',
+                        'rgba(244, 67, 54, 0.8)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#0a1628'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#ffffff', padding: 20, font: { size: 14 } }
+                    }
+                }
+            }
+        });
+
+        // グラフのリアルタイム更新
+        setInterval(() => {
+            const lastValue = transactionChart.data.datasets[0].data[6];
+            const newValue = lastValue + Math.floor(Math.random() * 5) - 2;
+            transactionChart.data.datasets[0].data[6] = Math.max(1200, newValue);
+            transactionChart.update('none');
+        }, 3000);
+
+        // レポート生成
+        function generateReport() {
+            const reportType = document.getElementById('reportType').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const format = document.getElementById('outputFormat').value;
+
+            // シミュレーション: レポート生成
+            const reportData = {
+                type: reportType,
+                period: `${startDate} ~ ${endDate}`,
+                generated: new Date().toLocaleString('ja-JP'),
+                summary: {
+                    totalTransactions: 35420,
+                    verifiedTransactions: 33346,
+                    verificationRate: 94.1,
+                    averageProcessingTime: '0.8秒',
+                    complianceScore: 98.5
+                }
+            };
+
+            alert(`レポート「${reportType}」を生成しました。\n\n対象期間: ${reportData.period}\n総取引数: ${reportData.summary.totalTransactions.toLocaleString()}件\n検証完了率: ${reportData.summary.verificationRate}%\n\n※実際のアプリケーションでは${format}ファイルがダウンロードされます。`);
+        }
+
+        // レポート表示
+        function viewReport() {
+            alert('レポートビューアを開きます。\n\n※実際のアプリケーションでは詳細なレポート画面が表示されます。');
+        }
+
+        // 初期化
+        updateStats();
+        generateTransactionTable();
+    </script>
+</body>
+</html>
